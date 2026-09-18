@@ -7,9 +7,15 @@ N = 10_000
 # para toda semilla, asi que el valor no cambia la calidad de la secuencia.
 # La de RANDU no puede ser arbitraria: debe ser impar para alcanzar 2**29.
 SEMILLAS = {
-    "lcg": 25062003, # Fecha de cumpleaños mia 
+    "lcg": 25062003, # Fecha de cumpleaños mia
     "randu": 111111111, # impar y suficientemente grande
+    "cuadrados_medios": 250620032506, # 12 digitos: cola 326,565 y periodo 2,500
 }
+
+# Cuadrados medios no tiene teoria de periodo: el numero de digitos decide
+# cuanto dura la orbita y hay que medirlo. Con 4 digitos el periodo maximo
+# sobre las 10,000 semillas posibles es 4, inservible para n = 10,000.
+DIGITOS_CUADRADOS_MEDIOS = 12
 
 # Semillas que ROMPEN el generador. Solo se usan en el laboratorio, para
 # exhibir cada falla; nunca para producir resultados del informe.
