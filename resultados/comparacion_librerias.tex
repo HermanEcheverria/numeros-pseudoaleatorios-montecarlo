@@ -1,0 +1,9 @@
+\begin{tabular}{lrcrrrr}
+\toprule
+Fuente & s / $10^6$ & Reproducible & $\chi^2$ & K--S & Autocorr. & Rachas \\
+\midrule
+MT19937 (propio) & 0.61 & Sí & 0.1142 & 0.0853 & 0.9599 & 0.9840 \\
+random (MT19937 de C) & 0.05 & Sí & 0.3267 & 0.8335 & 0.8447 & 0.8729 \\
+secrets (SystemRandom) & 0.24 & \textbf{No} & 0.6728 & 0.2604 & 0.8060 & 0.7949 \\
+\bottomrule
+\end{tabular}
