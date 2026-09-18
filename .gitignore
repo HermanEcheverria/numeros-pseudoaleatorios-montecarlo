@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+
+# LaTeX
+*.aux
+*.log
+*.out
+*.toc
+*.synctex.gz
+*.fls
+*.fdb_latexmk
+
+# ---------------------------------------------------------------------------
+# EXCLUIDO TEMPORALMENTE
+#
+# El enunciado (seccion 4, Entregables) EXIGE que el repositorio contenga el
+# documento en .pdf y su codigo .tex. Estan fuera solo mientras se construye
+# el codigo. ANTES DE ENTREGAR hay que borrar estas dos lineas y commitear
+# informe/ completo, o falta el entregable principal.
+informe/
+Tarea_2_2026.pdf
+
+# Sistema
+.DS_Store
+Thumbs.db
