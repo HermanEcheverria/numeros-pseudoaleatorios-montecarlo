@@ -1,0 +1,445 @@
+\section{Los cinco generadores}
+\label{sec:generadores}
+
+Cada generador se presenta con su fundamento matemático, su pseudocódigo, y los
+resultados de los incisos (a) y (b). Todas las semillas están registradas en
+\texttt{semillas.py} y aparecen en el pie de cada figura.
+
+\subsection{Generador congruencial lineal}
+
+El fundamento está derivado en la Sección~\ref{sec:fundamento-lcg}: la
+recurrencia \eqref{eq:lcg}, la forma cerrada del
+Lema~\ref{lema:forma-cerrada} y el Teorema~\ref{teo:hull-dobell} de
+Hull--Dobell.
+
+\begin{algorithm}[H]
+\caption{Generador congruencial lineal}
+\begin{algorithmic}[1]
+\Require $n$, semilla $x_0$, multiplicador $a$, incremento $c$, módulo $m$
+\Ensure $n$ valores en $[0,1)$
+\If{$a = 0$ \textbf{o} $a = 1$ \textbf{o} ($c = 0$ \textbf{y} $x_0 = 0$)}
+  \State \textbf{error}: caso degenerado
+\EndIf
+\State $x \gets x_0$
+\For{$i = 1$ \textbf{hasta} $n$}
+  \State $x \gets (a\,x + c) \bmod m$
+  \State $u_i \gets x / m$
+\EndFor
+\State \Return $(u_1,\dots,u_n)$
+\end{algorithmic}
+\end{algorithm}
+
+Se usan los parámetros de \emph{Numerical Recipes}: $a = 1\,664\,525$,
+$c = 1\,013\,904\,223$, $m = 2^{32}$. El corolario
+\eqref{eq:hd-potencia2} se verifica de un vistazo: $c$ es impar y
+$a - 1 = 1\,664\,524 = 4\cdot416\,131$, así que $a \equiv 1 \pmod 4$. El
+período es completo, $2^{32}$.
+
+\subsection{RANDU}
+
+RANDU es el LCG con $a = 65\,539$, $c = 0$, $m = 2^{31}$. Al ser $c = 0$ falla
+la primera condición de Hull--Dobell, y su período es el orden multiplicativo
+de $a$ módulo $2^{31}$, que resulta ser $2^{29}$: desperdicia el 75\,\% de
+los estados disponibles.
+
+Su defecto nace de que $65\,539 = 2^{16}+3$. Elevando al cuadrado,
+\[
+  a^2 = (2^{16}+3)^2 = 2^{32} + 6\cdot 2^{16} + 9
+      = 6\,(2^{16}+3) - 9 + 2^{32} = 6a - 9 + 2^{32},
+\]
+y como $2^{32} \equiv 0 \pmod{2^{31}}$, queda $a^2 \equiv 6a - 9$. Multiplicando
+por $x_n$ se obtiene la identidad exacta
+\begin{equation}
+  x_{n+2} = 6\,x_{n+1} - 9\,x_n \pmod{2^{31}} .
+  \label{eq:identidad-randu}
+\end{equation}
+Esta es la condición \eqref{eq:condicion-h} del Teorema~\ref{teo:red} con
+$\mathbf{h} = (9,-6,1)$, y de ella salen los planos de la
+Sección~\ref{sec:espectral}.
+
+\paragraph{Verificación numérica.} La identidad \eqref{eq:identidad-randu} se
+comprobó sobre los estados enteros (no normalizados, para que el redondeo de
+punto flotante no la contamine) de una secuencia de $10\,000$ valores: se
+cumple en las \textbf{9\,998} ternas, sin una sola excepción.
+
+\paragraph{Sensibilidad a la semilla.} Como $c = 0$, se tiene
+$x_n = a^n x_0 \bmod m$. Si la semilla es $x_0 = 2^s\cdot(\text{impar})$, el
+factor $2^s$ sale de la recurrencia y el generador se comporta como si el
+módulo fuera $2^{31-s}$: el período se parte a la mitad con cada factor 2.
+
+\begin{table}[H]
+\centering\small
+\begin{tabular}{rrr}
+\toprule
+Semilla & Período & Salidas distintas de 64 \\
+\midrule
+$1$      & $536\,870\,912 = 2^{29}$ & 64 \\
+$2$      & $268\,435\,456$ & 64 \\
+$2^{16}$ & $8\,192$ & 64 \\
+$2^{28}$ & $2$ & 2 \\
+$2^{30}$ & $\mathbf{1}$ & $\mathbf{1}$ \\
+\bottomrule
+\end{tabular}
+\caption{Degradación del período de RANDU según los factores de 2 de la
+semilla.}
+\label{tab:randu-semillas}
+\end{table}
+
+El caso extremo es contundente: con semilla $2^{30} = 1\,073\,741\,824$,
+\textbf{RANDU devuelve $0.5$ para siempre}. La razón cabe en una línea: como
+$65\,539$ es impar, $65\,539 \cdot 2^{30} \bmod 2^{31} = 2^{30}$, así que la
+semilla es un punto fijo. Un generador anunciado con período $2^{29}$ entrega
+una constante, y ninguna prueba de uniformidad avisa, porque el histograma es
+una sola barra. Por eso la semilla usada en este trabajo es impar y
+suficientemente grande para que $a\,x_0$ supere el módulo desde el primer paso.
+
+\subsection{Método de los cuadrados medios}
+
+Propuesto por von Neumann en 1949. El estado es un entero de $k$ dígitos (con
+$k$ par); se eleva al cuadrado, se rellena con ceros a la izquierda hasta $2k$
+posiciones y se extraen los $k$ dígitos centrales.
+
+\begin{algorithm}[H]
+\caption{Cuadrados medios (von Neumann)}
+\begin{algorithmic}[1]
+\Require $n$, semilla $x_0$ de $k$ dígitos, $k$ par
+\Ensure $n$ valores en $[0,1)$
+\State $x \gets x_0$
+\For{$i = 1$ \textbf{hasta} $n$}
+  \State $s \gets$ cadena de $x^2$ rellenada con ceros a la izquierda hasta $2k$ dígitos
+  \State $x \gets$ entero formado por los dígitos $s_{k/2+1}, \dots, s_{k/2+k}$
+  \State $u_i \gets x / 10^{k}$
+\EndFor
+\State \Return $(u_1,\dots,u_n)$
+\end{algorithmic}
+\end{algorithm}
+
+\paragraph{No hay teoría de período.} A diferencia del LCG, este método carece
+de un resultado tipo Hull--Dobell: el período depende de la semilla de un modo
+que solo se conoce midiéndolo. La implementación se validó primero contra dos
+secuencias publicadas: la de von Neumann con $k=2$ y semilla 43
+($43 \to 84 \to 05 \to 02 \to 00$, la «trampa del cero» en cuatro pasos) y el
+ciclo corto de $k=4$ ($6100 \to 2100 \to 4100 \to 8100 \to 6100$). Ambas se
+reproducen exactamente.
+
+\paragraph{Censo exhaustivo.} Con $k=4$ hay solo $10\,000$ semillas posibles,
+así que el período no se estima: se recorre el espacio completo.
+
+\begin{table}[H]
+\centering\small
+\input{../resultados/cm_censo}
+\caption{Período de las $10\,000$ semillas de 4 dígitos. Barrido exhaustivo.}
+\label{tab:cm-censo}
+\end{table}
+
+\textbf{El período máximo sobre todas las semillas posibles es 4.} No existe
+una sola semilla de 4 dígitos que produzca algo mejor. Las $2\,263$ de período
+1 caen en cinco puntos fijos distintos: el $0$ (que absorbe $1\,968$ semillas y
+es el «mecanismo cero» clásico), $2500$ (130), $100$ (104), $7600$ (60) y
+$3792$, que es un caso curioso: $3792^2 = 14\,379\,264$, cuyos cuatro dígitos
+centrales son $3792$, y ninguna otra semilla llega a él.
+
+Para producir $10\,000$ valores sin repetición hace falta subir a 12 dígitos.
+Con la semilla registrada, la órbita tiene una \textbf{cola de $326\,565$
+estados} antes de entrar en un \textbf{ciclo de $2\,500$}. Esa cola es la
+$\lambda > 0$ del Teorema~\ref{teo:periodicidad}: existe porque la función de
+transición no es inyectiva, cosa imposible en un LCG con $\gcd(a,m)=1$.
+
+\subsection{Mersenne Twister (MT19937)}
+
+Recurrencia lineal sobre $\mathbb{F}_2$ con 624 palabras de 32 bits de estado y
+período $2^{19937}-1$, un primo de Mersenne. Tiene tres etapas.
+
+\begin{algorithm}[H]
+\caption{MT19937}
+\begin{algorithmic}[1]
+\Require semilla $s$ de 32 bits
+\Statex \textbf{Inicialización}
+\State $mt[0] \gets s$
+\For{$i = 1$ \textbf{hasta} $623$}
+  \State $mt[i] \gets \bigl(1\,812\,433\,253 \cdot (mt[i-1] \oplus (mt[i-1] \gg 30)) + i\bigr) \bmod 2^{32}$
+\EndFor
+\Statex \textbf{Torcedura} (cuando se agotan las 624 palabras)
+\For{$i = 0$ \textbf{hasta} $623$}
+  \State $x \gets (mt[i] \wedge \texttt{0x80000000}) \vee (mt[(i{+}1)\bmod 624] \wedge \texttt{0x7FFFFFFF})$
+  \State $x_A \gets x \gg 1$; \textbf{si} $x$ es impar \textbf{entonces} $x_A \gets x_A \oplus \texttt{0x9908B0DF}$
+  \State $mt[i] \gets mt[(i{+}397)\bmod 624] \oplus x_A$
+\EndFor
+\Statex \textbf{Templado} (al emitir cada palabra)
+\State $y \gets mt[\text{índice}]$
+\State $y \gets y \oplus (y \gg 11)$
+\State $y \gets y \oplus ((y \ll 7) \wedge \texttt{0x9D2C5680})$
+\State $y \gets y \oplus ((y \ll 15) \wedge \texttt{0xEFC60000})$
+\State $y \gets y \oplus (y \gg 18)$
+\State \Return $y / 2^{32}$
+\end{algorithmic}
+\end{algorithm}
+
+\paragraph{Verificación.} La especificación publica la salida para la semilla
+de referencia $5489$. La implementación la reproduce exactamente:
+
+\begin{table}[H]
+\centering\small
+\input{../resultados/mt_verificacion}
+\caption{Primeras palabras de 32 bits con semilla $5489$, contra el vector de
+referencia de la especificación (OEIS A221557).}
+\label{tab:mt-verificacion}
+\end{table}
+
+Las diez coinciden, y además coinciden con las palabras crudas de
+\texttt{numpy.random.RandomState(5489)}. Dos fuentes independientes.
+
+\paragraph{Equidistribución y seguridad.} MT19937 está equidistribuido en 623
+dimensiones: sus $k$-tuplas llenan el hipercubo uniformemente hasta $k=623$.
+Ese es el contraste exacto con RANDU, que falla ya en $k=3$. Sin embargo
+\textbf{no es criptográficamente seguro}: el templado es una transformación
+invertible, así que observando 624 salidas consecutivas se reconstruye el
+estado interno y se predice todo el resto.
+
+\subsection{Blum Blum Shub}
+
+Recurrencia $x_{n+1} = x_n^2 \bmod M$ con $M = pq$ y $p,q$ primos de Blum
+($\equiv 3 \bmod 4$).
+
+\begin{algorithm}[H]
+\caption{Blum Blum Shub}
+\begin{algorithmic}[1]
+\Require $n$, semilla $s$ coprima con $M$, primos de Blum $p,q$
+\State $M \gets p\,q$; \quad $k \gets \lfloor \log_2 \log_2 M \rfloor$
+\State $x \gets s^2 \bmod M$ \Comment{garantiza que $x$ sea residuo cuadrático}
+\While{falten salidas}
+  \State $x \gets x^2 \bmod M$
+  \State acumular los $k$ bits menos significativos de $x$
+  \State \textbf{si} hay 32 bits acumulados \textbf{entonces} emitir su valor dividido entre $2^{32}$
+\EndWhile
+\end{algorithmic}
+\end{algorithm}
+
+\begin{table}[H]
+\centering\small
+\input{../resultados/bbs_condiciones}
+\caption{Condiciones verificadas sobre los primos elegidos.}
+\label{tab:bbs-condiciones}
+\end{table}
+
+\paragraph{El período.} Como $x_n = x_0^{2^n} \bmod M$, la sucesión se repite
+cuando $2^n$ recupera su valor módulo el orden de $x_0$. El cálculo tiene dos
+trampas. Primero, el orden \emph{no} se toma módulo $\lambda(M) = 2p'q'$, que
+es par y donde 2 ni siquiera es invertible; como $x_0$ es residuo cuadrático,
+su orden divide $\lambda(M)/2 = p'q'$, que es impar. Segundo, el orden de 2
+módulo $p'q'$ divide el exponente del grupo de unidades, $\mathrm{lcm}(p'-1,
+q'-1)$, y no $p'q'$. Con los primos elegidos el período resulta
+$2\,353\,997\,416\,697\,212 \approx 2^{51}$.
+
+La fórmula se verificó contra el período observado iterando, con primos seguros
+pequeños: $(p,q) = (11,23)$ da 20 predicho y 20 observado; $(23,47)$ da 110 y
+110; $(47,59)$ da 308 y 308.
+
+\paragraph{Seguridad y costo.} Es el único de los cinco criptográficamente
+seguro: distinguir su salida de una secuencia aleatoria es tan difícil como
+resolver el problema de la residuosidad cuadrática módulo $M$, que se apoya en
+la dificultad de factorizar $M$. La garantía exige emitir a lo sumo
+$\lfloor\log_2\log_2 M\rfloor = 5$ bits por estado; emitir el estado completo
+la destruiría. De ahí que necesite varias exponenciaciones modulares por
+número, contra una multiplicación del LCG, y que sea diez veces más lento.
+
+\subsection{Resultados de los incisos (a) y (b)}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{hist_lcg_randu.png}
+\\[0.6em]
+\includegraphics[width=0.32\textwidth]{hist_cuadrados_medios.png}
+\includegraphics[width=0.32\textwidth]{hist_mersenne.png}
+\includegraphics[width=0.32\textwidth]{hist_bbs.png}
+\caption{Histogramas normalizados de los cinco generadores, $n = 10\,000$, con
+la densidad teórica $\mathrm{Unif}(0,1)$ superpuesta.}
+\label{fig:histogramas}
+\end{figure}
+
+\begin{table}[H]
+\centering\small
+\input{../resultados/pruebas}
+\caption{Pruebas de hipótesis para LCG y RANDU.}
+\label{tab:pruebas-lcg}
+\end{table}
+
+\begin{table}[H]
+\centering\small
+\begin{minipage}{0.48\textwidth}\centering
+\input{../resultados/cm_pruebas}\\[0.3em]
+\footnotesize Cuadrados medios
+\end{minipage}
+\begin{minipage}{0.48\textwidth}\centering
+\input{../resultados/mt_pruebas}\\[0.3em]
+\footnotesize Mersenne Twister
+\end{minipage}
+\\[1em]
+\begin{minipage}{\textwidth}\centering
+\input{../resultados/bbs_pruebas}\\[0.3em]
+\footnotesize Blum Blum Shub
+\end{minipage}
+\caption{Pruebas de hipótesis para los tres generadores restantes.}
+\label{tab:pruebas-resto}
+\end{table}
+
+\paragraph{Interpretación.} Los cinco generadores pasan las cuatro pruebas.
+Pasa el criptográficamente seguro y pasa el que tiene cinco puntos fijos y un
+período máximo de 4 con cuatro dígitos. Pasa RANDU, que lleva dentro la
+identidad exacta \eqref{eq:identidad-randu}.
+
+Eso no es un defecto de las pruebas sino su alcance: $\chi^2$ y
+Kolmogórov--Smirnov examinan una coordenada a la vez, y la autocorrelación de
+retardo 1 y las rachas examinan relaciones entre pares consecutivos. Una
+relación de tres términos es invisible para las cuatro. \textbf{Una batería de
+pruebas certifica únicamente aquello que las pruebas miran.}
+
+\subsection{Robustez sobre múltiples semillas}
+
+Una sola corrida puede engañar en ambas direcciones. Con la semilla registrada,
+RANDU \emph{rechaza} la prueba de autocorrelación con $p = 0.0353$, lo que
+invitaría a concluir que esa prueba detectó su defecto. Para comprobarlo se
+aplicó el esquema de dos niveles de NIST SP 800-22: la batería se repite sobre
+$K = 100$ semillas y se analiza la distribución de los $p$-valores.
+
+Las 100 semillas no pueden elegirse consecutivas. En un LCG de período completo
+todas las semillas viven en el mismo ciclo, y dos semillas cercanas dan
+secuencias que se solapan casi por completo. Se obtienen saltando exactamente
+$10\,000$ posiciones mediante la forma cerrada del
+Lema~\ref{lema:forma-cerrada}, lo que las deja disjuntas por construcción; el
+salto se verificó contra iteración directa para los tres juegos de parámetros.
+
+\begin{table}[H]
+\centering\small
+\input{../resultados/robustez}
+\caption{Tasa de rechazo sobre 100 semillas disjuntas y uniformidad de los
+$p$-valores. La banda de NIST es $\alpha \pm 3\sqrt{\alpha(1-\alpha)/K}$.}
+\label{tab:robustez}
+\end{table}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{pvalores.png}
+\caption{Distribución de los $p$-valores sobre 100 semillas. Bajo $H_0$ deben
+ser $\mathrm{Unif}(0,1)$, es decir planos en 1.}
+\label{fig:pvalores}
+\end{figure}
+
+La tasa de rechazo de RANDU en la prueba de autocorrelación es del $3\,\%$,
+dentro de la banda: aquel rechazo aislado fue un \textbf{error de tipo I}, no
+una detección. Las ocho tasas caen dentro de lo esperado y los ocho
+histogramas son compatibles con la uniformidad. Con 800 $p$-valores en lugar de
+8, la conclusión se sostiene mucho mejor: estas cuatro pruebas no encuentran
+nada malo en RANDU.
+
+\section{Prueba espectral}
+\label{sec:espectral}
+
+El Teorema~\ref{teo:red} predice que las ternas de un LCG caen en planos. Se
+grafican las ternas consecutivas $(u_i,u_{i+1},u_{i+2})$ en el cubo $[0,1)^3$.
+
+\paragraph{El ángulo de vista está derivado, no ajustado.} La cámara apunta en
+la dirección $\mathbf{d} = (\cos e\cos a,\ \cos e \sin a,\ \sin e)$, donde $e$
+es la elevación y $a$ el azimut. Los planos se ven de canto cuando se mira
+\emph{paralelo} a ellos, es decir cuando $\mathbf{d}$ es perpendicular a la
+normal: $\mathbf{d}\cdot\mathbf{h} = 0$ con $\mathbf{h} = (9,-6,1)$. Resolviendo
+numéricamente se obtiene $e = 47^\circ$, $a = 62^\circ$, con residuo
+$5\times10^{-5}$.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.92\textwidth]{espectral_3d.png}
+\caption{Ternas consecutivas, $3\,000$ puntos. Arriba, el ángulo por defecto:
+ambos generadores parecen ruido. Abajo, el ángulo derivado: RANDU colapsa en
+líneas.}
+\label{fig:espectral3d}
+\end{figure}
+
+La fila superior es tan importante como la inferior. Desde un ángulo genérico
+RANDU y el LCG son indistinguibles a simple vista: el defecto solo aparece si
+se mira desde la dirección correcta.
+
+\paragraph{La demostración cuantitativa.} La gráfica convence; el conteo
+demuestra. Para cada terna se calcula $k_i = 9u_i - 6u_{i+1} + u_{i+2}$, que
+por \eqref{eq:identidad-randu} debe ser entero en RANDU.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{espectral_k.png}
+\caption{Distribución de $k_i$ sobre $20\,000$ ternas.}
+\label{fig:espectralk}
+\end{figure}
+
+\begin{table}[H]
+\centering\small
+\input{../resultados/espectral}
+\caption{Conteo de planos ocupados.}
+\label{tab:espectral}
+\end{table}
+
+RANDU toma exactamente \textbf{15} valores, $k \in \{-5,\dots,9\}$, con
+desviación $0.00$ respecto al entero más cercano: la relación es algebraica,
+no aproximada. El LCG de Numerical Recipes toma 0 valores enteros y su $k_i$ se
+distribuye de forma continua.
+
+El conteo coincide con la predicción del Teorema~\ref{teo:red}: como cada
+$u\in[0,1)$, la combinación $9u_i-6u_{i+1}+u_{i+2}$ está acotada entre $-6$ y
+$10$, así que solo caben los 15 enteros de $-5$ a $9$. Se predijeron 15 y se
+observaron 15.
+
+\paragraph{Relación con el período y la calidad.} RANDU tiene período
+$2^{29} \approx 5.4\times10^8$: más de quinientos millones de valores antes de
+repetirse. Y sus ternas ocupan 15 planos. Son propiedades
+\textbf{independientes}: el período mide cuánto tarda la secuencia en repetirse
+y la prueba espectral mide qué tan bien llena el espacio. Un generador puede
+tardar una eternidad en repetirse y distribuir pésimo en tres dimensiones.
+
+Peor aún, la cota de Marsaglia permitía hasta
+$(3!\cdot 2^{31})^{1/3} \approx 2344$ planos, que habría sido inofensivo.
+RANDU se queda en 15: unas 150 veces por debajo de su propio peor caso
+permitido.
+
+\section{Tabla comparativa}
+\label{sec:comparativa}
+
+\begin{table}[H]
+\centering\footnotesize
+\input{../resultados/tabla_comparativa}
+\caption{Comparación de los cinco generadores. Las velocidades están
+cronometradas en esta máquina (mejor de tres corridas); los períodos son
+derivados donde hay teoría y medidos donde no la hay.}
+\label{tab:comparativa}
+\end{table}
+
+El orden de velocidad reproduce el costo algebraico de cada recurrencia. El LCG
+y RANDU son idénticos en costo, como debe ser: RANDU \emph{es} un LCG. Los
+cuadrados medios pagan la conversión a cadena de dígitos. MT19937 paga la
+torcedura de 624 palabras. Y BBS es diez veces más lento que el LCG porque
+necesita varias exponenciaciones modulares para producir un solo número, ya que
+solo puede emitir 5 bits por estado.
+
+\subsection{Comparación con \texttt{random} y \texttt{secrets}}
+\label{sec:librerias}
+
+Para el inciso (d) se eligió MT19937 por una razón concreta: \texttt{random} de
+Python \emph{es} MT19937. Al tratarse del mismo algoritmo, cualquier diferencia
+mide la implementación y no la calidad del generador.
+
+\begin{table}[H]
+\centering\small
+\input{../resultados/comparacion_librerias}
+\caption{Comparación del MT19937 propio contra las librerías estándar.}
+\label{tab:librerias}
+\end{table}
+
+La implementación propia es unas doce veces más lenta que \texttt{random}, y
+eso no dice nada sobre el algoritmo: es Python interpretado contra C compilado.
+El detalle revelador es que \texttt{secrets} resulta \emph{más rápido} que el
+MT19937 propio pese a ser criptográficamente seguro. Tampoco es una ventaja
+algorítmica: \texttt{secrets} delega en el generador del sistema operativo, que
+también está en C. Lo caro no es la criptografía, es el bucle de Python.
+
+La diferencia que sí es de diseño está en la reproducibilidad.
+\texttt{secrets} no acepta semilla, y no por omisión sino a propósito: un
+generador criptográfico predecible no sirve de nada. Eso lo vuelve inutilizable
+para simulación reproducible, que es justamente lo que este trabajo exige.

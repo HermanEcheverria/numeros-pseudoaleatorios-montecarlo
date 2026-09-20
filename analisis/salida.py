@@ -5,6 +5,7 @@ Las tablas se guardan como .tex en resultados/ para que el documento las
 incorpore con \\input{}: ningun numero se transcribe a mano.
 """
 
+import re
 from pathlib import Path
 
 import matplotlib
@@ -90,6 +91,16 @@ def histogramas_pvalores(estudios, nombre_archivo, bins=10):
     return _guardar(fig, nombre_archivo)
 
 
+def _escapar(celda):
+    """
+    Escapa los % que no vengan ya escapados.
+
+    Un % sin escapar abre un comentario de LaTeX y se traga el resto de la
+    linea, lo que descuadra la alineacion de la tabla entera.
+    """
+    return re.sub(r"(?<!\\)%", r"\\%", str(celda))
+
+
 def guardar_tabla(encabezados, filas, nombre_archivo, alineacion=None):
     """Escribe un tabular de LaTeX en resultados/, listo para \\input{}."""
     RESULTADOS.mkdir(exist_ok=True)
@@ -97,8 +108,8 @@ def guardar_tabla(encabezados, filas, nombre_archivo, alineacion=None):
         alineacion = "l" + "r" * (len(encabezados) - 1)
 
     lineas = [f"\\begin{{tabular}}{{{alineacion}}}", "\\toprule",
-              " & ".join(encabezados) + " \\\\", "\\midrule"]
-    lineas += [" & ".join(str(c) for c in fila) + " \\\\" for fila in filas]
+              " & ".join(_escapar(c) for c in encabezados) + " \\\\", "\\midrule"]
+    lineas += [" & ".join(_escapar(c) for c in fila) + " \\\\" for fila in filas]
     lineas += ["\\bottomrule", "\\end{tabular}"]
 
     ruta = RESULTADOS / nombre_archivo

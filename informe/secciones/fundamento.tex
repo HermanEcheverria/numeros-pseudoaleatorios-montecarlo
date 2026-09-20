@@ -1,0 +1,295 @@
+\part{Generadores de números pseudoaleatorios}
+
+\section{Fundamento común}
+\label{sec:fundamento}
+
+Los cinco algoritmos que pide el enunciado (LCG, cuadrados medios, Mersenne
+Twister, Blum Blum Shub y RANDU) parecen muy distintos entre sí, pero comparten
+el mismo esqueleto. Conviene aislarlo una sola vez: de ahí salen dos resultados
+—la periodicidad inevitable y la estructura de red— que después se aplican a
+cada generador en particular.
+
+\subsection{Qué es, formalmente, un generador pseudoaleatorio}
+
+\begin{definicion}[Generador pseudoaleatorio]
+\label{def:prng}
+Un \emph{generador de números pseudoaleatorios} es una cuádrupla
+$(\mathcal{S}, g, h, x_0)$ donde
+\begin{itemize}
+  \item $\mathcal{S}$ es un conjunto \textbf{finito} de estados,
+  \item $g : \mathcal{S} \to \mathcal{S}$ es la \emph{función de transición},
+  \item $h : \mathcal{S} \to [0,1)$ es la \emph{función de salida}, y
+  \item $x_0 \in \mathcal{S}$ es la \emph{semilla}.
+\end{itemize}
+El generador produce la sucesión de estados $x_{n+1} = g(x_n)$ y la sucesión de
+salidas $u_n = h(x_n)$.
+\end{definicion}
+
+Las tres piezas se reparten así en los algoritmos de esta tarea:
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabularx}{\textwidth}{l L L L}
+\toprule
+Algoritmo & Estado $\mathcal{S}$ & Transición $g$ & Salida $h$ \\
+\midrule
+LCG / RANDU & $\{0,\dots,m-1\}$ & $x \mapsto (ax+c) \bmod m$ & $x/m$ \\
+Cuadrados medios & enteros de $2k$ dígitos & dígitos centrales de $x^2$ & $x/10^{k}$ \\
+Blum Blum Shub & $\mathbb{Z}_M^{*}$ & $x \mapsto x^2 \bmod M$ & bits bajos de $x$ \\
+Mersenne Twister & $(\mathbb{Z}_2^{32})^{624}$ & torcedura lineal sobre $\mathbb{F}_2$ & templado de una palabra \\
+\bottomrule
+\end{tabularx}
+\caption{Los cuatro esquemas bajo la misma estructura de la
+Definición~\ref{def:prng}.}
+\label{tab:esqueleto}
+\end{table}
+
+Dos consecuencias se leen directamente de la definición, antes de programar nada:
+
+\paragraph{Determinismo.} Como $g$ es una función y $x_0$ está fijo, toda la
+sucesión queda determinada por la semilla. Dos ejecuciones con la misma semilla
+producen \emph{exactamente} la misma secuencia. Esto no es un defecto sino el
+requisito de reproducibilidad que exige el enunciado; por eso cada generador de
+este trabajo recibe su semilla como argumento explícito.
+
+\paragraph{Ausencia de azar genuino.} La sucesión $(u_n)$ no es aleatoria en
+ningún sentido probabilístico: es una sucesión fija. Lo único que se puede
+pedir es que \emph{sea indistinguible} de una muestra i.i.d.\ $\mathrm{Unif}(0,1)$
+frente a una batería de pruebas estadísticas dada. Esta sección se ocupa de la
+parte determinista; las pruebas de hipótesis, de la otra.
+
+\subsection{Toda sucesión pseudoaleatoria es periódica}
+
+\begin{teorema}[Periodicidad eventual]
+\label{teo:periodicidad}
+Sea $(\mathcal{S}, g, h, x_0)$ un generador pseudoaleatorio con
+$|\mathcal{S}| = N < \infty$. Entonces existen enteros
+$\lambda \ge 0$ (la \emph{cola}) y $\rho \ge 1$ (el \emph{período}) tales que
+\[
+  x_{n+\rho} = x_n \qquad \text{para todo } n \ge \lambda,
+\]
+y además $\lambda + \rho \le N$.
+\end{teorema}
+
+\begin{proof}
+Considérense los $N+1$ estados $x_0, x_1, \dots, x_N$. Todos pertenecen a
+$\mathcal{S}$, que tiene solo $N$ elementos. Por el principio del palomar, dos
+de ellos coinciden: existen índices $0 \le i < j \le N$ con $x_i = x_j$.
+
+Sea $\rho = j - i \ge 1$. Como $x_{n+1}$ depende \emph{únicamente} de $x_n$,
+aplicar $g$ a ambos lados de $x_i = x_j$ da $x_{i+1} = x_{j+1}$, y por inducción
+$x_{i+k} = x_{j+k} = x_{i+k+\rho}$ para todo $k \ge 0$. Tomando
+$\lambda = i$ se obtiene $x_{n+\rho} = x_n$ para todo $n \ge \lambda$.
+Finalmente $\lambda + \rho = i + (j-i) = j \le N$.
+\end{proof}
+
+La demostración es corta pero dice tres cosas que importan en todo el trabajo:
+
+\begin{enumerate}
+  \item \textbf{El período nunca supera el número de estados}, $\rho \le N$.
+        Aumentar el período obliga a agrandar el espacio de estados: es
+        exactamente lo que hace el Mersenne Twister al guardar $624$ palabras de
+        $32$ bits en lugar de un solo entero, alcanzando $\rho = 2^{19937}-1$.
+  \item \textbf{Puede haber una cola $\lambda > 0$}: estados iniciales que nunca
+        se vuelven a visitar. Esto ocurre cuando $g$ no es inyectiva, que es
+        justamente el caso de los cuadrados medios. Si $g$ \emph{sí} es
+        biyectiva —como en un LCG con $\gcd(a,m)=1$— entonces $\lambda = 0$ y la
+        sucesión es puramente periódica desde el inicio.
+  \item \textbf{La periodicidad es estructural, no un defecto de implementación.}
+        Ningún algoritmo determinista sobre memoria finita puede evitarla. Lo
+        único negociable es que $\rho$ sea tan grande que no se alcance en la
+        práctica.
+\end{enumerate}
+
+\subsection{El generador congruencial lineal como caso de estudio}
+\label{sec:fundamento-lcg}
+
+El LCG es el más simple de los cinco y el único cuyo comportamiento se puede
+caracterizar por completo con álgebra elemental. Por eso se deriva aquí: RANDU
+resultará ser un caso particular suyo, y los defectos que se demuestren para la
+familia se heredan automáticamente.
+
+La recurrencia es
+\begin{equation}
+  x_{n+1} = (a\,x_n + c) \bmod m,
+  \qquad n = 0, 1, 2, \dots
+  \label{eq:lcg}
+\end{equation}
+con \emph{módulo} $m > 1$, \emph{multiplicador} $0 < a < m$, \emph{incremento}
+$0 \le c < m$ y semilla $0 \le x_0 < m$. Si $c = 0$ el generador se llama
+\emph{multiplicativo} (o de Lehmer); si $c \neq 0$, \emph{mixto}.
+
+\subsubsection{Forma cerrada}
+
+\begin{lema}[Forma cerrada del LCG]
+\label{lema:forma-cerrada}
+Para todo $n \ge 0$,
+\begin{equation}
+  x_n \equiv a^n x_0 + c \sum_{k=0}^{n-1} a^k \pmod{m}.
+  \label{eq:forma-cerrada}
+\end{equation}
+\end{lema}
+
+\begin{proof}
+Por inducción sobre $n$.
+
+\emph{Base.} Para $n = 0$ la suma es vacía (vale $0$) y el enunciado se reduce a
+$x_0 \equiv a^0 x_0 = x_0$, que es cierto.
+
+\emph{Paso inductivo.} Supóngase \eqref{eq:forma-cerrada} válida para $n$.
+Aplicando la recurrencia \eqref{eq:lcg} y la hipótesis de inducción:
+\begin{align*}
+  x_{n+1} &\equiv a\,x_n + c
+   \equiv a\left(a^n x_0 + c \sum_{k=0}^{n-1} a^k\right) + c \\
+  &\equiv a^{n+1} x_0 + c \sum_{k=0}^{n-1} a^{k+1} + c
+   \equiv a^{n+1} x_0 + c \sum_{k=1}^{n} a^{k} + c \\
+  &\equiv a^{n+1} x_0 + c \sum_{k=0}^{n} a^{k} \pmod{m},
+\end{align*}
+donde el último paso absorbe el término $c = c\,a^0$ dentro de la suma. Esto es
+\eqref{eq:forma-cerrada} para $n+1$.
+\end{proof}
+
+El Lema~\ref{lema:forma-cerrada} tiene una lectura incómoda: $x_n$ es una
+función \emph{explícita y barata} de $n$. No hace falta iterar para saltar a
+cualquier punto de la sucesión, y —lo que es peor para cualquier uso
+criptográfico— basta observar unas pocas salidas consecutivas para plantear un
+sistema y recuperar $(a, c, m)$. Ningún LCG es seguro, y la razón es esta
+fórmula, no una debilidad de implementación.
+
+\subsubsection{Período: el teorema de Hull--Dobell}
+
+Por el Teorema~\ref{teo:periodicidad} el período cumple $\rho \le m$. La
+pregunta natural es cuándo se alcanza la igualdad.
+
+\begin{teorema}[Hull--Dobell, 1962 \cite{hulldobell}]
+\label{teo:hull-dobell}
+Un LCG mixto \eqref{eq:lcg} tiene período completo $\rho = m$ para
+\textbf{toda} semilla $x_0$ si y solo si se cumplen las tres condiciones:
+\begin{enumerate}
+  \item $\gcd(c, m) = 1$;
+  \item $a - 1$ es divisible por todo factor primo $q$ de $m$;
+  \item si $4 \mid m$, entonces $4 \mid (a-1)$.
+\end{enumerate}
+\end{teorema}
+
+\paragraph{Corolario para módulos potencia de dos.} Si $m = 2^k$ con $k \ge 2$,
+el único factor primo de $m$ es $2$ y $4 \mid m$, de modo que las tres
+condiciones colapsan en dos reglas verificables de un vistazo:
+\begin{equation}
+  c \text{ impar}
+  \qquad\text{y}\qquad
+  a \equiv 1 \pmod 4 .
+  \label{eq:hd-potencia2}
+\end{equation}
+En efecto, $\gcd(c, 2^k) = 1 \iff c$ es impar; la condición (2) pide
+$2 \mid (a-1)$ y la (3) pide $4 \mid (a-1)$, de las cuales la segunda implica la
+primera. Este corolario explica de entrada por qué RANDU \emph{no} alcanza
+período completo: al tener $c = 0$ falla la condición (1) desde el primer paso.
+
+\subsubsection{Los casos degenerados}
+\label{sec:degenerados}
+
+Antes de programar conviene identificar qué elecciones de parámetros rompen el
+generador, porque son las que la implementación debe rechazar explícitamente.
+
+\paragraph{$a = 0$.} La recurrencia se vuelve $x_{n+1} = c \bmod m$ para todo
+$n$: la sucesión es la constante $c/m$ desde el primer término. Período
+$\rho = 1$.
+
+\paragraph{$c = 0$ y $x_0 = 0$.} El cero es punto fijo de la recurrencia
+multiplicativa, pues $g(0) = (a \cdot 0) \bmod m = 0$. Toda la sucesión es
+idénticamente cero. Este caso es especialmente traicionero porque no lanza
+ningún error: produce diez mil ceros que pasan desapercibidos si uno no mira el
+histograma.
+
+\paragraph{$a = 1$.} La recurrencia se reduce a $x_n = (x_0 + nc) \bmod m$, una
+progresión aritmética. Tiene período completo si $\gcd(c,m)=1$, y sin embargo
+las salidas son una rampa perfectamente predecible. Es el contraejemplo que
+demuestra que \textbf{período completo no implica calidad}: Hull--Dobell es
+necesario pero muy lejos de suficiente.
+
+\subsection{Estructura de red: por qué las $k$-tuplas caen en hiperplanos}
+\label{sec:red}
+
+El defecto más serio de la familia LCG no lo detecta ninguna prueba
+unidimensional. Aparece al mirar las salidas de $k$ en $k$.
+
+\begin{teorema}[Estructura de red \cite{marsaglia}]
+\label{teo:red}
+Sea un LCG con parámetros $(a, c, m)$ y sea $k \ge 2$. Para todo vector de
+enteros $\mathbf{h} = (h_0, h_1, \dots, h_{k-1})$ que satisfaga
+\begin{equation}
+  h_0 + h_1 a + h_2 a^2 + \dots + h_{k-1} a^{k-1} \equiv 0 \pmod{m},
+  \label{eq:condicion-h}
+\end{equation}
+los puntos $\mathbf{u}_n = (u_n, u_{n+1}, \dots, u_{n+k-1})$ del cubo $[0,1)^k$
+caen todos sobre una familia de hiperplanos paralelos, y el número de
+hiperplanos efectivamente ocupados es a lo sumo $\sum_{i} |h_i|$.
+\end{teorema}
+
+\begin{proof}
+Iterando el Lema~\ref{lema:forma-cerrada} desde $x_n$ en lugar de $x_0$,
+\[
+  x_{n+i} \equiv a^{i} x_n + c\, \sigma_i \pmod m ,
+  \qquad
+  \sigma_i := \sum_{j=0}^{i-1} a^{j} ,
+\]
+donde $\sigma_i$ \textbf{no depende de $n$}. Entonces
+\[
+  \sum_{i=0}^{k-1} h_i\, x_{n+i}
+  \;\equiv\; x_n \underbrace{\sum_{i=0}^{k-1} h_i a^{i}}_{\equiv\, 0 \text{ por } \eqref{eq:condicion-h}}
+  \;+\; c \underbrace{\sum_{i=0}^{k-1} h_i \sigma_i}_{=:\,K}
+  \;\equiv\; cK \pmod m .
+\]
+El lado izquierdo es congruente módulo $m$ a una constante que no depende de
+$n$, así que existe un entero $\ell_n$ con
+$\sum_i h_i x_{n+i} = cK + \ell_n m$. Dividiendo entre $m$ y usando
+$u_{n+i} = x_{n+i}/m$:
+\begin{equation}
+  \sum_{i=0}^{k-1} h_i\, u_{n+i} = \frac{cK}{m} + \ell_n .
+  \label{eq:hiperplano}
+\end{equation}
+Para cada valor entero de $\ell_n$, la ecuación \eqref{eq:hiperplano} define un
+hiperplano en $[0,1)^k$; al variar $n$ lo único que cambia es $\ell_n$, de modo
+que todos los puntos viven en esa familia de hiperplanos paralelos. Como
+$u_{n+i} \in [0,1)$, el lado izquierdo de \eqref{eq:hiperplano} está acotado en
+un intervalo de longitud $\sum_i |h_i|$, luego $\ell_n$ solo puede tomar a lo
+sumo $\sum_i |h_i|$ valores enteros distintos.
+\end{proof}
+
+Marsaglia \cite{marsaglia} demuestra además que \emph{siempre} existe un
+$\mathbf{h}$ no trivial que cumple \eqref{eq:condicion-h} con coeficientes
+pequeños, y que en consecuencia los puntos de cualquier LCG caen en no más de
+$(k!\,m)^{1/k}$ hiperplanos. Para $k=3$ y $m = 2^{31}$ esa cota vale
+\[
+  (3! \cdot 2^{31})^{1/3} = (6 \cdot 2\,147\,483\,648)^{1/3} \approx 2344 ,
+\]
+que para efectos prácticos es inofensivo: $2344$ planos llenan el cubo de forma
+razonablemente densa. El escándalo de RANDU —que se documenta en su propia
+sección— es que se queda en \textbf{15}, dos órdenes de magnitud por debajo de
+lo que la cota permitía.
+
+\paragraph{Lectura operativa.} El Teorema~\ref{teo:red} explica por qué el
+enunciado pide la \emph{prueba espectral visual} y no solo pruebas de hipótesis.
+Las pruebas de uniformidad ($\chi^2$, Kolmogórov--Smirnov) miran una coordenada
+a la vez; las de independencia serial (autocorrelación, rachas) miran
+correlaciones lineales de a pares. Una relación exacta de tres términos como
+\eqref{eq:condicion-h} es invisible para todas ellas y salta a la vista en el
+diagrama de dispersión tridimensional. Es la diferencia entre no encontrar
+evidencia y no haberla buscado donde estaba.
+
+\subsection{Normalización}
+
+Las salidas se obtienen dividiendo el estado entre el módulo, $u_n = x_n / m$.
+Se divide entre $m$ y no entre $m-1$ porque el estado recorre
+$\{0, 1, \dots, m-1\}$: el valor máximo posible es $(m-1)/m < 1$, que es
+exactamente el soporte $[0,1)$ de la distribución $\mathrm{Unif}(0,1)$ estándar.
+Dividir entre $m-1$ permitiría la salida $u = 1$, fuera del soporte, lo cual
+rompe cualquier transformación posterior que use $\log(1-u)$ o la inversa de una
+función de distribución acumulada.
+
+Conviene tener presente que la salida es un valor de una rejilla discreta de
+paso $1/m$, no un real del continuo. Ninguna implementación puede producir más
+de $m$ valores distintos, y por eso una prueba de bondad de ajuste con más de
+$m$ clases carecería de sentido.

@@ -1,0 +1,114 @@
+\documentclass[11pt]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[spanish, es-noshorthands, es-nodecimaldot, es-tabla]{babel}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{amsmath, amssymb, amsthm}
+\usepackage{graphicx}
+\usepackage{subcaption}
+\usepackage{tabularx}
+\usepackage{booktabs}
+\usepackage{float}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage[hidelinks]{hyperref}
+
+% babel-spanish redefine \% para anadirle un espacio fino, y eso choca con
+% las unidades de pegamento cuando aparece en tablas o cerca de modo
+% matematico. Se restaura el caracter simple.
+\AtBeginDocument{\DeclareRobustCommand{\%}{\char37}}
+
+\graphicspath{{../figuras/}}
+
+\newtheorem{teorema}{Teorema}
+\newtheorem{lema}{Lema}
+\newtheorem{definicion}{Definición}
+\newcolumntype{L}{>{\raggedright\arraybackslash}X}
+
+% Pseudocódigo en español
+\floatname{algorithm}{Algoritmo}
+\algrenewcommand\algorithmicrequire{\textbf{Entrada:}}
+\algrenewcommand\algorithmicensure{\textbf{Salida:}}
+\algrenewcommand\algorithmicfor{\textbf{para}}
+\algrenewcommand\algorithmicdo{\textbf{hacer}}
+\algrenewcommand\algorithmicend{\textbf{fin}}
+\algrenewcommand\algorithmicreturn{\textbf{devolver}}
+\algrenewcommand\algorithmicwhile{\textbf{mientras}}
+\algrenewcommand\algorithmicif{\textbf{si}}
+\algrenewcommand\algorithmicelse{\textbf{si no}}
+\algrenewcommand\algorithmicthen{\textbf{entonces}}
+
+\title{Tarea 2: Números Pseudoaleatorios y Métodos de Monte Carlo\
+       \large Curso Libre de Configuración 2: Análisis de Datos}
+\author{Herman Andrés Echeverría Rojas\
+        \small Facultad de Ingeniería, Universidad del Istmo de Guatemala}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+\noindent
+Este documento acompaña al repositorio
+\url{https://github.com/HermanEcheverria/numeros-pseudoaleatorios-montecarlo}.
+Todas las figuras y tablas que aparecen aquí son generadas por los scripts del
+repositorio a partir de las semillas registradas en \texttt{semillas.py}: no hay
+ningún número transcrito a mano. Cualquiera puede clonar el repositorio,
+ejecutar los scripts y obtener exactamente estos resultados.
+\end{abstract}
+
+\tableofcontents
+\newpage
+
+\input{secciones/fundamento}
+\input{secciones/generadores}
+
+\input{secciones/mc_fundamento}
+\input{secciones/mc_resultados}
+
+\begin{thebibliography}{9}
+
+\bibitem{hulldobell}
+  T.~E. Hull y A.~R. Dobell. ``Random Number Generators''.
+  \emph{SIAM Review} 4.3 (1962), pp.~230--254.
+  doi: 10.1137/1004061.
+
+\bibitem{marsaglia}
+  G. Marsaglia. ``Random Numbers Fall Mainly in the Planes''.
+  \emph{Proceedings of the National Academy of Sciences} 61.1 (1968),
+  pp.~25--28. doi: 10.1073/pnas.61.1.25.
+
+\bibitem{knuth}
+  D.~E. Knuth. \emph{The Art of Computer Programming, Vol. 2:
+  Seminumerical Algorithms}. 3.\textsuperscript{a} ed. Addison-Wesley, 1997.
+  Capítulo 3.
+
+\bibitem{vonneumann}
+  J. von Neumann. ``Various Techniques Used in Connection with Random Digits''.
+  \emph{National Bureau of Standards Applied Mathematics Series} 12 (1951),
+  pp.~36--38.
+
+\bibitem{matsumoto}
+  M. Matsumoto y T. Nishimura. ``Mersenne Twister: A 623-Dimensionally
+  Equidistributed Uniform Pseudo-Random Number Generator''.
+  \emph{ACM Transactions on Modeling and Computer Simulation} 8.1 (1998),
+  pp.~3--30. doi: 10.1145/272991.272995.
+
+\bibitem{bbs}
+  L. Blum, M. Blum y M. Shub. ``A Simple Unpredictable Pseudo-Random Number
+  Generator''. \emph{SIAM Journal on Computing} 15.2 (1986), pp.~364--383.
+  doi: 10.1137/0215025.
+
+\bibitem{law}
+  A.~M. Law. \emph{Simulation Modeling and Analysis}. 5.\textsuperscript{a} ed.
+  McGraw-Hill, 2015.
+
+\bibitem{randomorg}
+  RANDOM.ORG. \emph{Introduction to Randomness and Random Numbers}.
+  \url{https://www.random.org/randomness/}.
+
+\end{thebibliography}
+
+\end{document}

@@ -14,15 +14,8 @@ venv/
 *.fls
 *.fdb_latexmk
 
-# ---------------------------------------------------------------------------
-# EXCLUIDO TEMPORALMENTE
-#
-# El enunciado (seccion 4, Entregables) EXIGE que el repositorio contenga el
-# documento en .pdf y su codigo .tex. Estan fuera solo mientras se construye
-# el codigo. ANTES DE ENTREGAR hay que borrar estas dos lineas y commitear
-# informe/ completo, o falta el entregable principal.
-informe/
-Tarea_2_2026.pdf
+# El PDF del informe SI se versiona: es entregable.
+!informe/main.pdf
 
 # Sistema
 .DS_Store

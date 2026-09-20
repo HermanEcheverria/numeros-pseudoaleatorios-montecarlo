@@ -1,0 +1,158 @@
+\part{Métodos de Monte Carlo}
+
+\section{Fundamento: el estimador y su error}
+\label{sec:mc-fundamento}
+
+Esta sección deriva los tres resultados que sostienen todo lo que sigue: que el
+estimador de Monte Carlo es insesgado, que su error decae como $O(N^{-1/2})$
+sin importar la dimensión, y cómo se construye su intervalo de confianza.
+
+\subsection{La integral como valor esperado}
+
+Sea $f$ integrable en $[a,b]$ y sea $I = \int_a^b f(x)\,dx$. Si
+$U \sim \mathrm{Unif}(a,b)$, su densidad es $p(x) = 1/(b-a)$ sobre $[a,b]$ y
+cero fuera. Entonces, por definición de valor esperado,
+\begin{equation}
+  \mathbb{E}[f(U)] = \int_a^b f(x)\, p(x)\, dx
+  = \frac{1}{b-a}\int_a^b f(x)\,dx = \frac{I}{b-a},
+  \label{eq:esperanza}
+\end{equation}
+de donde
+\begin{equation}
+  \boxed{\;I = (b-a)\,\mathbb{E}[f(U)]\;}
+  \label{eq:integral-esperanza}
+\end{equation}
+
+El paso es puramente algebraico, pero cambia la naturaleza del problema:
+calcular una integral pasa a ser \emph{estimar una media}. Y una media se
+estima promediando muestras.
+
+\subsection{El estimador es insesgado}
+
+Sean $U_1, \dots, U_N$ independientes e idénticamente distribuidas
+$\mathrm{Unif}(a,b)$, y defínase
+\begin{equation}
+  \hat I_N = \frac{b-a}{N}\sum_{i=1}^{N} f(U_i).
+  \label{eq:estimador}
+\end{equation}
+
+\begin{teorema}[Insesgadez]
+\label{teo:insesgado}
+$\mathbb{E}[\hat I_N] = I$ para todo $N \ge 1$.
+\end{teorema}
+
+\begin{proof}
+Por linealidad del valor esperado, que no requiere independencia:
+\[
+  \mathbb{E}[\hat I_N]
+  = \frac{b-a}{N}\, \mathbb{E}\!\left[\sum_{i=1}^{N} f(U_i)\right]
+  = \frac{b-a}{N} \sum_{i=1}^{N} \mathbb{E}[f(U_i)].
+\]
+Como todas las $U_i$ tienen la misma distribución, cada sumando vale lo mismo,
+$\mathbb{E}[f(U_i)] = \mathbb{E}[f(U)] = I/(b-a)$ por \eqref{eq:esperanza}.
+Hay $N$ sumandos iguales, así que
+\[
+  \mathbb{E}[\hat I_N] = \frac{b-a}{N} \cdot N \cdot \frac{I}{b-a} = I. \qedhere
+\]
+\end{proof}
+
+Conviene subrayar qué \emph{no} dice el teorema. Insesgado significa que el
+estimador acierta \emph{en promedio sobre infinitas repeticiones}, no que una
+corrida particular esté cerca. Cuán cerca está una corrida es justamente lo que
+mide la varianza.
+
+\subsection{La varianza y la tasa $O(N^{-1/2})$}
+
+\begin{teorema}[Varianza del estimador]
+\label{teo:varianza}
+Si $\sigma_f^2 := \mathrm{Var}(f(U)) < \infty$, entonces
+\begin{equation}
+  \mathrm{Var}(\hat I_N) = \frac{(b-a)^2 \sigma_f^2}{N},
+  \qquad\text{y por lo tanto}\qquad
+  \mathrm{EE}(\hat I_N) = \frac{(b-a)\,\sigma_f}{\sqrt{N}} .
+  \label{eq:varianza}
+\end{equation}
+\end{teorema}
+
+\begin{proof}
+Aquí sí hace falta la independencia. Para variables independientes la varianza
+de la suma es la suma de las varianzas, y $\mathrm{Var}(cX) = c^2\mathrm{Var}(X)$:
+\[
+  \mathrm{Var}(\hat I_N)
+  = \left(\frac{b-a}{N}\right)^{\!2} \mathrm{Var}\!\left(\sum_{i=1}^{N} f(U_i)\right)
+  = \frac{(b-a)^2}{N^2} \sum_{i=1}^{N} \mathrm{Var}(f(U_i))
+  = \frac{(b-a)^2}{N^2} \cdot N\sigma_f^2 ,
+\]
+que se simplifica a \eqref{eq:varianza}. El error estándar es la raíz.
+\end{proof}
+
+El error estándar decae como $N^{-1/2}$. Es una tasa \textbf{lenta}: para
+ganar un dígito decimal de precisión hay que multiplicar $N$ por cien. Pero
+tiene una propiedad que la vuelve valiosa.
+
+\paragraph{Por qué la tasa no depende de la dimensión.} Obsérvese qué entra en
+la fórmula \eqref{eq:varianza}: solamente $N$ y $\sigma_f^2$. La dimensión
+\emph{no aparece}. La razón es que la derivación nunca usó que $U$ fuera un
+número real: solo usó que las $f(U_i)$ fueran independientes, idénticamente
+distribuidas y de varianza finita. Si $U$ es un punto en $\mathbb{R}^d$, cada
+$f(U_i)$ sigue siendo un \emph{escalar}, el promedio sigue siendo un promedio
+de $N$ números, y el mismo cálculo se aplica palabra por palabra.
+
+El contraste con los métodos determinísticos es lo que da valor a esto. Una
+regla de cuadratura sobre una rejilla de $m$ puntos por eje necesita $m^d$
+evaluaciones, y su error típico es $O(m^{-k}) = O(N^{-k/d})$ para un método de
+orden $k$: la tasa \emph{se degrada} al crecer $d$. Monte Carlo mantiene
+$N^{-1/2}$ para todo $d$. Existe una dimensión a partir de la cual Monte Carlo
+gana, y la Sección~\ref{sec:mc-alta-dimension} la localiza numéricamente.
+
+Lo que sí puede empeorar con la dimensión es la \emph{constante} $\sigma_f$,
+no la tasa. La Sección~\ref{sec:mc-alta-dimension} muestra un caso donde
+$\sigma_f$ se vuelve catastrófica.
+
+\subsection{Intervalo de confianza del 95\,\%}
+
+El Teorema del Límite Central establece que, si $\sigma_f^2 < \infty$,
+\[
+  \frac{\hat I_N - I}{\mathrm{EE}(\hat I_N)} \xrightarrow{\;d\;} \mathcal{N}(0,1)
+  \qquad \text{cuando } N \to \infty .
+\]
+Escribiendo $z_{0.975} \approx 1.96$ para el cuantil que deja $2.5\,\%$ en cada
+cola, para $N$ grande
+\[
+  \mathbb{P}\!\left(-z_{0.975} \le \frac{\hat I_N - I}{\mathrm{EE}} \le z_{0.975}\right)
+  \approx 0.95 .
+\]
+Despejando $I$ dentro de la desigualdad se obtiene el intervalo
+\begin{equation}
+  \boxed{\;
+  \mathrm{IC}_{95\%} = \left[\;
+    \hat I_N - 1.96\,\frac{(b-a)S_f}{\sqrt{N}},\;\;
+    \hat I_N + 1.96\,\frac{(b-a)S_f}{\sqrt{N}}
+  \;\right]}
+  \label{eq:ic}
+\end{equation}
+donde $\sigma_f$, que es desconocida, se reemplaza por su estimador muestral
+\begin{equation}
+  S_f^2 = \frac{1}{N-1}\sum_{i=1}^N \bigl(f(U_i) - \bar f\bigr)^2 ,
+  \qquad \bar f = \frac1N \sum_i f(U_i).
+  \label{eq:S}
+\end{equation}
+El divisor $N-1$ (corrección de Bessel) hace que $S_f^2$ sea insesgado para
+$\sigma_f^2$; con divisor $N$ el estimador subestima sistemáticamente la
+varianza y el intervalo saldría demasiado angosto.
+
+\paragraph{Qué significa realmente el intervalo.} El $95\,\%$ no es la
+probabilidad de que $I$ esté en \emph{este} intervalo: $I$ es una constante, o
+está o no está. Es la probabilidad de que el \emph{procedimiento} produzca un
+intervalo que atrape a $I$, sobre repeticiones del experimento. Esa lectura es
+verificable, y se verifica en la Sección~\ref{sec:mc-integrales}: al partir una
+corrida larga en 1000 bloques disjuntos, 946 de los intervalos contienen el
+valor verdadero, un $94.6\,\%$ frente al $95\,\%$ nominal.
+
+\paragraph{Dos supuestos que conviene no olvidar.} El intervalo
+\eqref{eq:ic} es \emph{asintótico}: descansa en el TLC, así que para $N$
+pequeño o integrandos muy asimétricos la cobertura real puede alejarse del
+$95\,\%$. Y exige $\sigma_f^2 < \infty$; con integrandos de varianza infinita
+el TLC no aplica y el intervalo carece de sentido. Un caso límite aparece en la
+Sección~\ref{sec:mc-alta-dimension}, donde en $d = 20$ ningún punto cae dentro
+de la región, $S_f = 0$ y el intervalo colapsa a un punto.

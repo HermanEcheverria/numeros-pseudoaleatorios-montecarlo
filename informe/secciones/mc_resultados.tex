@@ -1,0 +1,348 @@
+\section{Integrales en una dimensión}
+\label{sec:mc-integrales}
+
+Se estiman las dos integrales del enunciado,
+\[
+  \text{(a)}\;\int_0^1 \sin(\pi x)\,dx = \frac{2}{\pi} \approx 0.63661977,
+  \qquad
+  \text{(b)}\;\int_0^2 \frac{1}{\sqrt{2\pi}}e^{-x^2/2}\,dx
+  = \Phi(2)-\Phi(0) \approx 0.47724987,
+\]
+usando el estimador \eqref{eq:estimador} y el intervalo \eqref{eq:ic}. Cada
+integral se calcula con dos fuentes de uniformes: el MT19937 implementado en la
+Parte~\ref{sec:fundamento} y el LCG de Numerical Recipes.
+
+\begin{table}[H]
+\centering\small
+\input{../resultados/mc_integrales}
+\caption{Estimaciones con $N = 100\,000$. Los cuatro intervalos contienen el
+valor verdadero.}
+\label{tab:mc-integrales}
+\end{table}
+
+Los cuatro intervalos atrapan el valor real. Los errores son del orden de
+$10^{-4}$, consistentes con un error estándar de $\sim 10^{-3}$: las
+estimaciones caen a menos de un error estándar del valor exacto, que es
+exactamente lo que predice la teoría.
+
+\subsection{Estudio de convergencia}
+
+La Figura~\ref{fig:convergencia} grafica el error absoluto medio contra $N$ en
+escala log--log, con $N$ desde $10^1$ hasta $10^6$. Para que la recta sea
+legible se promedia el error sobre 20 réplicas en bloques disjuntos: una sola
+corrida produce una nube demasiado ruidosa para ajustar una pendiente con
+sentido.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{convergencia.png}
+\caption{Error absoluto medio contra $N$. La recta discontinua tiene pendiente
+exacta $-1/2$.}
+\label{fig:convergencia}
+\end{figure}
+
+\begin{table}[H]
+\centering\small
+\input{../resultados/mc_pendientes}
+\caption{Pendientes ajustadas por mínimos cuadrados sobre los logaritmos.}
+\label{tab:pendientes}
+\end{table}
+
+Si $|\hat I_N - I| \approx C N^{-1/2}$, entonces
+$\log|\hat I_N - I| \approx \log C - \tfrac12 \log N$, de modo que la pendiente
+en escala log--log debe ser $-1/2$. Las cuatro pendientes ajustadas quedan
+entre $-0.45$ y $-0.54$, con desvíos de a lo sumo $0.046$ respecto al valor
+teórico. \textbf{La tasa $O(N^{-1/2})$ derivada en el
+Teorema~\ref{teo:varianza} queda confirmada empíricamente.}
+
+Los desvíos no son un defecto del método sino ruido de estimación: el error de
+una corrida es una variable aleatoria, y promediar 20 réplicas reduce esa
+dispersión pero no la elimina. Con $N$ grande el número de réplicas baja (para
+no agotar la memoria), lo que aumenta el ruido justo en el extremo derecho de
+la recta, que es donde más pesa el ajuste.
+
+\subsection{Verificación de la cobertura}
+
+El intervalo \eqref{eq:ic} promete atrapar el valor real el $95\,\%$ de las
+veces. Eso es comprobable. Se genera una secuencia de $10^7$ uniformes, se
+parte en 1000 bloques disjuntos de $N = 10^4$, se construye un intervalo por
+bloque y se cuenta cuántos contienen $2/\pi$:
+\[
+  \textbf{946 de 1000} = 94.6\,\% ,
+  \qquad \text{esperado } 950 \pm 6.9 .
+\]
+El resultado cae dentro de una desviación estándar del valor nominal. Se usan
+bloques disjuntos de una misma corrida, y no semillas distintas, porque en un
+LCG dos semillas producen secuencias relacionadas de forma determinista; los
+bloques disjuntos garantizan que ningún número se reutilice entre réplicas.
+
+\section{Alta dimensión y la maldición de la dimensionalidad}
+\label{sec:mc-alta-dimension}
+
+Se estima el volumen de la bola unitaria en $d$ dimensiones,
+$V_d = \pi^{d/2}/\Gamma(d/2+1)$, muestreando puntos uniformes en el cubo
+$[-1,1]^d$ y contando la fracción que cae dentro. El valor cerrado se usa
+únicamente como verdad de referencia.
+
+Como la fracción $p$ es una proporción binomial, $\mathrm{Var}(\hat p) =
+p(1-p)/N$, y el intervalo se construye sobre esa varianza multiplicada por el
+volumen del cubo, $2^d$.
+
+\begin{table}[H]
+\centering\small
+\input{../resultados/mc_bola}
+\caption{Estimación de $V_d$ con $N = 200\,000$ puntos.}
+\label{tab:mc-bola}
+\end{table}
+
+La columna de aciertos es la que cuenta la historia. En $d=2$ caen dentro
+$157\,087$ puntos de $200\,000$; en $d=10$ apenas $491$; en $d=20$,
+\textbf{ninguno}. Y no es un error: el número esperado de aciertos en $d=20$ es
+$0.005$, así que observar cero es el resultado más probable con diferencia.
+
+\paragraph{El intervalo cuando no hay aciertos.} Con $\hat p = 0$ el error
+estándar binomial $\sqrt{\hat p(1-\hat p)/N}$ vale cero y el intervalo
+\eqref{eq:ic} colapsa a $[0,0]$, que \emph{no} contiene el valor real
+$V_{20} \approx 0.0258$. La aproximación normal exige varios aciertos para ser
+válida. En su lugar se usa la \emph{regla de tres}: con cero éxitos en $N$
+ensayos, el límite superior del intervalo del $95\,\%$ para la proporción es
+aproximadamente $3/N$, lo que da $[0,\;15.73]$. Contiene el valor real, pero es
+tan ancho que no informa nada. Esa inutilidad es el diagnóstico.
+
+\subsection{Comparación contra cuadratura determinística}
+
+\begin{table}[H]
+\centering\small
+\input{../resultados/mc_rejilla}
+\caption{Cuadratura en rejilla con $m = 10$ subdivisiones por eje.}
+\label{tab:mc-rejilla}
+\end{table}
+
+Una rejilla de $m=10$ por eje necesita $10^d$ evaluaciones. En $d=2$ son 100 y
+en $d=5$ son cien mil, ambas triviales. En $d=10$ son \textbf{diez mil
+millones}, y en $d=20$ son $10^{20}$: más evaluaciones que segundos
+transcurridos desde el Big Bang. El costo crece exponencialmente con $d$
+mientras el refinamiento por eje se queda clavado en 10. \emph{Eso} es la
+maldición de la dimensionalidad.
+
+\begin{table}[H]
+\centering\small
+\input{../resultados/mc_presupuesto}
+\caption{Error a igual presupuesto de evaluaciones: se elige $m$ tal que
+$m^d \approx 200\,000$.}
+\label{tab:mc-presupuesto}
+\end{table}
+
+A igual presupuesto el cruce es nítido. En $d=2$ empatan. En $d=5$ Monte Carlo
+ya gana por un factor de seis. En $d=10$ el presupuesto solo alcanza para
+$m=3$ subdivisiones por eje, y la rejilla se equivoca por un $36.7\,\%$ contra
+el $9.6\,\%$ de Monte Carlo. La rejilla no falla por ser mala regla, sino
+porque en alta dimensión el presupuesto no da ni para tres puntos por eje.
+
+\subsection{Por qué el muestreo uniforme se vuelve ineficiente}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.75\textwidth]{fraccion_volumen.png}
+\caption{Fracción del cubo $[-1,1]^d$ ocupada por la bola unitaria, en escala
+logarítmica.}
+\label{fig:fraccion}
+\end{figure}
+
+La fracción $V_d/2^d$ se desploma: $0.785$ en $d=2$, $0.165$ en $d=5$,
+$2.5\times10^{-3}$ en $d=10$, $2.5\times10^{-8}$ en $d=20$ y
+$2.0\times10^{-14}$ en $d=30$.
+
+El fenómeno geométrico es que \textbf{en alta dimensión, casi todo el volumen
+de un cubo está en sus esquinas}. La bola inscrita toca cada cara a distancia
+1 del centro, pero los vértices del cubo están a distancia $\sqrt{d}$, que
+crece sin límite. El cubo se vuelve, en esencia, $2^d$ púas delgadas alrededor
+de una bola comparativamente diminuta.
+
+Esto no contradice la tasa $O(N^{-1/2})$: la tasa sigue siendo $N^{-1/2}$, pero
+la \emph{constante} explota. Con $p$ minúsculo, el error relativo del estimador
+de proporción es
+\[
+  \frac{\mathrm{EE}(\hat p)}{p} = \sqrt{\frac{1-p}{Np}} \approx \frac{1}{\sqrt{Np}},
+\]
+así que mantener un error relativo fijo exige $N \propto 1/p = 2^d/V_d$, que en
+$d=20$ significa del orden de $10^8$ puntos para un solo dígito de precisión.
+
+La lección de diseño es que el muestreo uniforme en el cubo es la elección
+equivocada: gasta prácticamente todas sus muestras en una región que no aporta.
+Un buen estimador en alta dimensión debe concentrar el muestreo donde el
+integrando no se anula, que es la idea del muestreo por importancia.
+
+\section{Reducción de varianza}
+\label{sec:mc-varianza}
+
+Como el error es $\sigma/\sqrt{N}$, bajarlo admite dos caminos: subir $N$, que
+cuesta tiempo lineal, o bajar $\sigma$. Se implementan dos técnicas y se
+aplican a \emph{ambas} integrales de la Sección~\ref{sec:mc-integrales}, porque
+el contraste entre ellas es el resultado más interesante.
+
+\subsection{Variables antitéticas}
+
+A cada $U$ se le empareja su reflejo $a+b-U$, que tiene la misma distribución.
+Con $N/2$ uniformes se producen $N$ evaluaciones, de modo que el presupuesto se
+mantiene. Escribiendo $Y = f(U)$ e $Y' = f(a+b-U)$,
+\begin{equation}
+  \mathrm{Var}\!\left(\frac{Y+Y'}{2}\right)
+  = \frac{\mathrm{Var}(Y) + \mathrm{Var}(Y') + 2\,\mathrm{Cov}(Y,Y')}{4}
+  = \frac{\mathrm{Var}(Y)\,\bigl(1 + \rho\bigr)}{2},
+  \label{eq:antiteticas}
+\end{equation}
+donde $\rho$ es la correlación entre $Y$ e $Y'$. La técnica ayuda si y solo si
+$\rho < 0$, lo que ocurre cuando $f$ es monótona: si $U$ es grande, $a+b-U$ es
+pequeño, y una $f$ monótona convierte eso en valores opuestos que se compensan.
+
+\subsection{Variables de control}
+
+Se usa una variable $g(X)$ de media conocida $\mu_g$ y se corrige:
+$Y_c = Y - c\,(g(X) - \mu_g)$. Como $\mathbb{E}[g(X)-\mu_g] = 0$, el estimador
+sigue siendo insesgado para cualquier $c$. Su varianza es
+\[
+  \mathrm{Var}(Y_c) = \mathrm{Var}(Y) - 2c\,\mathrm{Cov}(Y,g) + c^2\mathrm{Var}(g),
+\]
+una parábola en $c$ cuyo mínimo está en
+$c^\star = \mathrm{Cov}(Y,g)/\mathrm{Var}(g)$. Sustituyendo,
+\begin{equation}
+  \mathrm{Var}(Y_{c^\star}) = \mathrm{Var}(Y)\,(1-\rho^2)
+  \quad\Longrightarrow\quad
+  \text{factor de reducción} = \frac{1}{1-\rho^2},
+  \label{eq:control}
+\end{equation}
+con $\rho$ la correlación entre $f$ y $g$. La técnica vale exactamente lo que
+$g$ se parezca a $f$.
+
+\subsection{Resultados}
+
+\begin{table}[H]
+\centering\small
+\input{../resultados/mc_varianza}
+\caption{Factores de reducción con $N = 200\,000$ evaluaciones en todos los
+casos.}
+\label{tab:mc-varianza}
+\end{table}
+
+\paragraph{¿La técnica siempre ayuda?} No, y las dos integrales lo demuestran
+en direcciones opuestas.
+
+\emph{Antitéticas.} En la integral (b), donde $\phi$ es monótona decreciente en
+$[0,2]$, el factor es $\mathbf{363\times}$. En la integral (a) el factor es
+$\mathbf{0.50\times}$: la técnica \textbf{empeora} el estimador. La razón es
+exacta y no estadística: $\sin(\pi(1-x)) = \sin(\pi x)$, de modo que
+$Y' = Y$ idénticamente, $\rho = +1$, y \eqref{eq:antiteticas} da
+$\mathrm{Var}(Y)$, la misma varianza que Monte Carlo simple, pero habiendo
+gastado dos evaluaciones por muestra en lugar de una. La simetría del
+integrando respecto al centro del intervalo es precisamente el peor caso.
+
+\emph{Variables de control.} En la integral (a), el control lineal $g(x)=x$ da
+$\rho = 0.004$ y un factor de $1.00\times$: no hace nada. Otra vez la simetría
+es la culpable, ahora porque $\mathrm{Cov}(\sin(\pi U), U) = 0$ para
+$U\sim\mathrm{Unif}(0,1)$. Basta cambiar a un control que comparta la simetría,
+$g(x) = x(1-x)$, para obtener $\rho = 0.9984$ y un factor de
+$\mathbf{317\times}$. En la integral (b) el orden se invierte: el control
+lineal da $106\times$ y el cuadrático solo $5.3\times$.
+
+\paragraph{Contraste con la predicción teórica.} La fórmula \eqref{eq:control}
+predice un factor $1/(1-\rho^2)$. Con $\rho = 0.9984$ predice $313$ y se midió
+$\mathbf{317}$; con $\rho = -0.9953$ predice $107$ y se midió $\mathbf{106}$.
+La coincidencia confirma la derivación.
+
+\paragraph{\emph{Speedup} efectivo.} Como la varianza del promedio es
+inversamente proporcional a $N$, reducir la varianza por un factor $k$ equivale
+a multiplicar el número de muestras por $k$. El control $g(x)=x(1-x)$ en la
+integral (a) rinde como $317 \times 200\,000 \approx 6.3\times 10^{7}$ muestras
+de Monte Carlo simple, a costo de una sola evaluación extra por punto.
+
+\section{Cuando el generador arruina el resultado: RANDU}
+\label{sec:mc-randu}
+
+Se estima la integral triple
+\[
+  I = \iiint_{[0,1]^3} \mathbf{1}\bigl[x^2+y^2+z^2 \le 1\bigr]\,dx\,dy\,dz
+  = \frac{\pi}{6} \approx 0.52359878,
+\]
+que depende genuinamente de ternas $(x,y,z)$, usando ternas consecutivas y
+disjuntas de cada generador.
+
+\begin{table}[H]
+\centering\small
+\input{../resultados/mc_randu}
+\caption{Integral triple con $2\,000\,000$ de ternas.}
+\label{tab:mc-randu}
+\end{table}
+
+\paragraph{Un resultado contrario a la expectativa.} RANDU \textbf{no falla}.
+Su error es de $0.2$ errores estándar, mejor incluso que el del LCG de
+Numerical Recipes ($1.7$). Los tres intervalos contienen $\pi/6$.
+
+Esto merece explicación en vez de disimulo. Los 15 planos derivados en el
+Teorema~\ref{teo:red} tienen normal $\mathbf{h}=(9,-6,1)$ y están separados por
+\[
+  \frac{1}{\|\mathbf{h}\|} = \frac{1}{\sqrt{81+36+1}} = \frac{1}{\sqrt{118}}
+  \approx 0.0921 .
+\]
+La bola unitaria restringida a $[0,1]^3$ mide del orden de 1 en cada dirección,
+así que la atraviesan una docena de planos. Repartir los puntos sobre planos
+equiespaciados que cortan la región muchas veces se parece mucho a un muestreo
+\emph{estratificado}, y la estratificación no sesga: si acaso, reduce varianza.
+El defecto de RANDU no desaparece, simplemente no muerde a esta escala.
+
+\subsection{Dónde sí muerde}
+
+Si la estructura tiene una escala característica de $0.0921$, el fallo debe
+aparecer al estimar regiones de ese tamaño o menores. Se repite el
+experimento con bolas centradas en $(\tfrac12,\tfrac12,\tfrac12)$ de radio
+decreciente.
+
+\begin{table}[H]
+\centering\small
+\input{../resultados/mc_randu_escala}
+\caption{Volumen de bolas pequeñas, $10^6$ ternas. El espaciado entre planos
+de RANDU es $0.0921$.}
+\label{tab:randu-escala}
+\end{table}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{randu_convergencia.png}
+\caption{Izquierda: los tres generadores convergen para la bola unitaria.
+Derecha: al bajar el radio por debajo del espaciado entre planos (línea
+punteada), RANDU se despeña mientras Mersenne solo acusa el ruido estadístico
+de tener menos aciertos.}
+\label{fig:randu-convergencia}
+\end{figure}
+
+El error de RANDU pasa de $0.8\,\%$ con radio $0.30$ a $\mathbf{143\,\%}$ con
+radio $0.03$, mientras Mersenne Twister solo se degrada de $0.1\,\%$ a
+$11.4\,\%$ por el ruido esperable de tener pocos aciertos. El cruce ocurre
+alrededor del radio $0.05$, es decir cuando el diámetro de la bola es
+comparable al espaciado entre planos.
+
+\paragraph{La explicación geométrica.} Una bola de radio $0.03$ tiene diámetro
+$0.06$, menor que la separación $0.0921$ entre planos consecutivos. Según dónde
+caiga, o bien ningún plano la atraviesa —y RANDU no puede colocar un solo punto
+dentro, estimando volumen cero— o bien un plano la corta por el medio y todos
+los puntos de RANDU en esa zona se concentran en un disco, sobrestimando. No
+hay término medio, porque \textbf{RANDU no tiene puntos entre los planos}. El
+$143\,\%$ de error de la tabla es este segundo caso.
+
+\paragraph{Conexión con la prueba espectral.} Esto es la
+Sección~\ref{sec:espectral} vista desde Monte Carlo. Allí se comprobó que
+$k_i = 9u_i - 6u_{i+1} + u_{i+2}$ toma exactamente 15 valores enteros, con
+desviación $0.00$ respecto al entero más cercano en las $19\,998$ ternas
+examinadas. Aquí se mide el precio de esa estructura: el estimador falla cuando
+la región de interés es más fina que la retícula. La prueba espectral
+\emph{predice} la escala a la que el estimador va a fallar, y la predicción se
+cumple.
+
+\paragraph{La moraleja, con un matiz.} Un método de Monte Carlo nunca será
+mejor que su fuente de aleatoriedad. Pero el experimento obliga a precisar la
+frase: la calidad de un generador no es un número único, sino que depende de la
+escala a la que se lo interrogue. RANDU es perfectamente utilizable para
+estimar el volumen de la bola unitaria y catastrófico para una bola de radio
+$0.03$, con los mismos puntos y en el mismo cubo. Lo peligroso no es que un
+generador sea malo: es que sea malo \emph{solo} en el régimen que uno necesita,
+mientras pasa todas las pruebas que uno corre.
