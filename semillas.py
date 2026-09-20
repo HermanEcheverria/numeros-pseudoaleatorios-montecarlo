@@ -11,6 +11,7 @@ SEMILLAS = {
     "randu": 111111111, # impar y suficientemente grande
     "cuadrados_medios": 250620032506, # 12 digitos: cola 326,565 y periodo 2,500
     "mersenne": 25062003, # cualquier valor de 32 bits sirve
+    "bbs": 25062003, # debe ser coprima con M y distinta de 0 y 1
 }
 
 # Semilla de referencia de la especificacion MT19937, para verificar la

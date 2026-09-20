@@ -1,0 +1,11 @@
+\begin{tabular}{lrrlp{4cm}p{4cm}}
+\toprule
+Algoritmo & s / $10^6$ & Rel. & Período & Seguridad & Casos de uso \\
+\midrule
+LCG (Num. Recipes) & 0.14 & 1.0$\times$ & $2^{32}$ & Nula: la forma cerrada permite recuperar $(a,c,m)$ con pocas salidas. & Simulación sencilla, videojuegos, sistemas embebidos, \texttt{rand()} de C. \\
+RANDU & 0.14 & 1.0$\times$ & $2^{29}$ & Nula, y además las ternas caen en 15 planos. & Ninguno. Solo interés histórico y didáctico. \\
+Cuadrados medios & 0.27 & 2.0$\times$ & cola $326\,565$ + ciclo $2\,500$ & Nula. Degenera: cinco puntos fijos con 4 dígitos. & Ninguno. Obsoleto desde los años 50. \\
+Mersenne Twister & 0.59 & 4.3$\times$ & $2^{19937}-1$ & Nula: con 624 salidas se reconstruye el estado. & Estándar de simulación. Motor de \texttt{random} de Python. \\
+Blum Blum Shub & 1.41 & 10.3$\times$ & $\approx 2^{51}$ & \textbf{Criptográfica}: equivale a la residuosidad cuadrática módulo $M$. & Criptografía, donde la lentitud es aceptable. \\
+\bottomrule
+\end{tabular}
